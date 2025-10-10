@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <Button
+        android:id="@+id/btnGenerate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Gerar KeyPair" />
+
+    <EditText
+        android:id="@+id/editEncrypted"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Cole aqui o blob Base64"
+        android:layout_marginTop="16dp" />
+
+    <Button
+        android:id="@+id/btnDecrypt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Decriptar com Biometria"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>

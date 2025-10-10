@@ -1,0 +1,139 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const crypto = require('crypto');
+
+const app = express();
+app.use(bodyParser.json({ limit: '1mb' }));
+
+// Segredo que você quer proteger por dispositivo
+const SECRET_TO_PROTECT = "Super sensivel key";
+
+/**
+ * Converte Base64 do Android (DER) para PEM
+ */
+function androidBase64ToPem(androidBase64) {
+  const derBytes = Buffer.from(androidBase64, 'base64');
+  const base64Lines = derBytes.toString('base64').match(/.{1,64}/g).join('\n');
+  return `-----BEGIN PUBLIC KEY-----\n${base64Lines}\n-----END PUBLIC KEY-----\n`;
+}
+
+/**
+ * Testa diferentes configurações de criptografia
+ */
+function testEncryptionConfigs(pubPem, data) {
+  console.log('\n=== TESTING ENCRYPTION CONFIGS ===');
+  
+  const configs = [
+    { name: 'OAEP-SHA256-MGF1-SHA256', options: { padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256', mgf1Hash: 'sha256' } },
+    { name: 'OAEP-SHA256-MGF1-SHA1', options: { padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256', mgf1Hash: 'sha1' } },
+    { name: 'OAEP-SHA1-MGF1-SHA1', options: { padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha1', mgf1Hash: 'sha1' } },
+    { name: 'OAEP-DEFAULT', options: { padding: crypto.constants.RSA_PKCS1_OAEP_PADDING } },
+    { name: 'PKCS1', options: { padding: crypto.constants.RSA_PKCS1_PADDING } }
+  ];
+
+  const results = [];
+  
+  for (const config of configs) {
+    try {
+      console.log(`Trying: ${config.name}`);
+      const encrypted = crypto.publicEncrypt({ key: pubPem, ...config.options }, Buffer.from(data, 'utf8'));
+      const encryptedBase64 = encrypted.toString('base64');
+      
+      console.log(`✅ ${config.name}: ${encrypted.length} bytes, Base64 length: ${encryptedBase64.length}`);
+      console.log(`   First 20 chars: ${encryptedBase64.substring(0, 20)}`);
+      
+      results.push({
+        name: config.name,
+        encryptedBase64,
+        size: encrypted.length
+      });
+    } catch (err) {
+      console.log(`❌ ${config.name}: ${err.message}`);
+    }
+  }
+  
+  return results;
+}
+
+/**
+ * Endpoint de registro do dispositivo
+ */
+app.post('/register', (req, res) => {
+  try {
+    const { publicKeyBase64 } = req.body;
+    if (!publicKeyBase64) return res.status(400).json({ error: 'publicKeyBase64 required' });
+
+    console.log('\n=== REGISTER REQUEST ===');
+    console.log('Public key length:', publicKeyBase64.length);
+    console.log('Public key (first 50 chars):', publicKeyBase64.substring(0, 50));
+    console.log('Secret to encrypt:', SECRET_TO_PROTECT);
+    console.log('Secret length:', SECRET_TO_PROTECT.length);
+    
+    const pubPem = androidBase64ToPem(publicKeyBase64);
+    console.log('PEM format (first 100 chars):', pubPem.substring(0, 100));
+
+    // (Opcional) Log de todas as configurações para diagnóstico
+    const encryptionResults = testEncryptionConfigs(pubPem, SECRET_TO_PROTECT);
+
+    // Força PKCS1 como configuração final usada para o app
+    const encrypted = crypto.publicEncrypt(
+      { key: pubPem, padding: crypto.constants.RSA_PKCS1_PADDING },
+      Buffer.from(SECRET_TO_PROTECT, 'utf8')
+    );
+    const encryptedBase64 = encrypted.toString('base64');
+
+    console.log('\n=== USING FORCED CONFIG ===');
+    console.log('Selected: PKCS1');
+    console.log('Encrypted size:', encrypted.length);
+
+    return res.json({ 
+      encryptedBase64,
+      debug: {
+        mode: 'PKCS1',
+        allConfigs: encryptionResults,
+        secretLength: SECRET_TO_PROTECT.length,
+        publicKeyLength: publicKeyBase64.length
+      }
+    });
+  } catch (err) {
+    console.error('Encryption error:', err);
+    return res.status(500).json({ error: 'server error', detail: err.message });
+  }
+});
+
+/**
+ * Endpoint para testar múltiplas configurações
+ */
+app.post('/test-configs', (req, res) => {
+  try {
+    const { publicKeyBase64 } = req.body;
+    if (!publicKeyBase64) return res.status(400).json({ error: 'publicKeyBase64 required' });
+
+    const pubPem = androidBase64ToPem(publicKeyBase64);
+    const encryptionResults = testEncryptionConfigs(pubPem, SECRET_TO_PROTECT);
+    
+    return res.json({ 
+      configs: encryptionResults,
+      secret: SECRET_TO_PROTECT 
+    });
+  } catch (err) {
+    console.error('Test configs error:', err);
+    return res.status(500).json({ error: 'server error', detail: err.message });
+  }
+});
+
+/**
+ * Endpoint simples para retornar segredo
+ */
+app.post('/get-secret', (req, res) => {
+  return res.json({ secret: SECRET_TO_PROTECT });
+});
+
+// Inicia servidor
+app.listen(3000, () => {
+  console.log('🚀 Debug Server listening on :3000');
+  console.log('Available endpoints:');
+  console.log('  POST /register - Normal registration');
+  console.log('  POST /test-configs - Test all encryption configs');
+  console.log('  POST /get-secret - Get plain secret');
+});
