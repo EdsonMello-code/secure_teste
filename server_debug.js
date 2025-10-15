@@ -18,6 +18,55 @@ function androidBase64ToPem(androidBase64) {
 }
 
 /**
+ * Converte chave raw do iOS para PEM (X.509 DER format)
+ */
+function iosRawToPem(rawKeyBase64) {
+  const rawKeyBytes = Buffer.from(rawKeyBase64, 'base64');
+  console.log('🔧 Raw key bytes length:', rawKeyBytes.length);
+  
+  // Create X.509 SubjectPublicKeyInfo structure
+  const algorithmIdentifier = Buffer.from([
+    0x30, 0x0d,              // SEQUENCE
+    0x06, 0x09,              // OBJECT IDENTIFIER  
+    0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, // rsaEncryption OID
+    0x05, 0x00               // NULL
+  ]);
+  
+  // Create BIT STRING for the key
+  const bitStringLength = rawKeyBytes.length + 1; // +1 for unused bits
+  let bitStringHeader;
+  
+  if (bitStringLength < 128) {
+    bitStringHeader = Buffer.from([0x03, bitStringLength, 0x00]);
+  } else if (bitStringLength < 256) {
+    bitStringHeader = Buffer.from([0x03, 0x81, bitStringLength, 0x00]);
+  } else {
+    bitStringHeader = Buffer.from([0x03, 0x82, (bitStringLength >> 8) & 0xFF, bitStringLength & 0xFF, 0x00]);
+  }
+  
+  const bitString = Buffer.concat([bitStringHeader, rawKeyBytes]);
+  
+  // Create main SEQUENCE
+  const contentLength = algorithmIdentifier.length + bitString.length;
+  let mainSequenceHeader;
+  
+  if (contentLength < 128) {
+    mainSequenceHeader = Buffer.from([0x30, contentLength]);
+  } else if (contentLength < 256) {
+    mainSequenceHeader = Buffer.from([0x30, 0x81, contentLength]);
+  } else {
+    mainSequenceHeader = Buffer.from([0x30, 0x82, (contentLength >> 8) & 0xFF, contentLength & 0xFF]);
+  }
+  
+  const derBytes = Buffer.concat([mainSequenceHeader, algorithmIdentifier, bitString]);
+  
+  console.log('🔧 Constructed DER length:', derBytes.length);
+  
+  const base64Lines = derBytes.toString('base64').match(/.{1,64}/g).join('\n');
+  return `-----BEGIN PUBLIC KEY-----\n${base64Lines}\n-----END PUBLIC KEY-----\n`;
+}
+
+/**
  * Testa diferentes configurações de criptografia
  */
 function testEncryptionConfigs(pubPem, data) {
@@ -69,8 +118,26 @@ app.post('/register', (req, res) => {
     console.log('Secret to encrypt:', SECRET_TO_PROTECT);
     console.log('Secret length:', SECRET_TO_PROTECT.length);
     
-    const pubPem = androidBase64ToPem(publicKeyBase64);
+    let pubPem;
+    let platformType = 'Android';
+    
+    // Check if this is iOS raw format
+    if (publicKeyBase64.startsWith('IOS_RAW:')) {
+      platformType = 'iOS';
+      const rawKeyBase64 = publicKeyBase64.substring(8); // Remove "IOS_RAW:" prefix
+      console.log('🍎 Detected iOS raw key format');
+      console.log('Raw key length:', rawKeyBase64.length);
+      
+      // Convert iOS raw key to proper PEM format
+      pubPem = iosRawToPem(rawKeyBase64);
+    } else {
+      // Android format
+      console.log('🤖 Detected Android DER format');
+      pubPem = androidBase64ToPem(publicKeyBase64);
+    }
+    
     console.log('PEM format (first 100 chars):', pubPem.substring(0, 100));
+    console.log('Platform detected:', platformType);
 
     // (Opcional) Log de todas as configurações para diagnóstico
     const encryptionResults = testEncryptionConfigs(pubPem, SECRET_TO_PROTECT);

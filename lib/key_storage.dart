@@ -19,7 +19,17 @@ class KeyManager {
       if (publicKeyBase64 == null || publicKeyBase64.isEmpty) {
         throw KeyFailure('Error: chave publica nao gerada!');
       }
-      return _androidBase64ToPem(publicKeyBase64);
+
+      // ✨ SUPORTE PARA iOS E ANDROID
+      if (publicKeyBase64.startsWith('IOS_RAW:')) {
+        // iOS retorna raw key data com prefixo IOS_RAW:
+        print('📱 iOS raw key format detected');
+        return publicKeyBase64; // Retorna como está para o servidor processar
+      } else {
+        // Android retorna DER format em Base64
+        print('🤖 Android DER format detected');
+        return _androidBase64ToPem(publicKeyBase64);
+      }
     } on PlatformException catch (e) {
       throw KeyFailure(e.message ?? '');
     }
@@ -54,10 +64,29 @@ class KeyManager {
 
   // ✨ VERSÃO SIMPLIFICADA COM ENCRYPT PACKAGE
   String encryptSecretToPKCS1Base64({
-    required String pemPublicKey,
+    required String publicKeyData,
     required String secret,
   }) {
     try {
+      String pemPublicKey;
+
+      // ✨ DETECÇÃO DE PLATAFORMA BASEADA NO FORMATO DA CHAVE
+      if (publicKeyData.startsWith('IOS_RAW:')) {
+        print(
+          '📱 Processing iOS raw key format - should be converted to PEM first',
+        );
+        // Este caso agora é tratado no SecureStorage, que converte para PEM antes
+        throw KeyFailure(
+          'iOS raw key should be converted to PEM before encryption',
+        );
+      } else if (publicKeyData.startsWith('-----BEGIN PUBLIC KEY-----')) {
+        print('🔑 Processing PEM format key');
+        pemPublicKey = publicKeyData;
+      } else {
+        print('🤖 Processing Android Base64 format');
+        pemPublicKey = _androidBase64ToPem(publicKeyData);
+      }
+
       // Cria parser RSA do package encrypt
       final parser = RSAKeyParser();
       final asymmetricKey = parser.parse(pemPublicKey);
