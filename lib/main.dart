@@ -146,8 +146,9 @@ class _SecurePageState extends State<SecurePage> {
     });
 
     try {
-      // CHANGE THIS IP TO YOUR SERVER
-      await _service.registerDevice('http://192.168.1.145:3000');
+      await _service.registerDevice(
+        'http://localstorage:3000',
+      ); // coloca o ip da rede
       setState(() {
         _status = '✅ Device registered successfully!';
       });
