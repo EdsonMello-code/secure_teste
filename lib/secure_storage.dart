@@ -9,21 +9,21 @@ class SecureStorageFailure implements Exception {
   const SecureStorageFailure(this.message);
 }
 
-/// 🔐 SecureStorage - Sistema de Armazenamento Seguro Cross-Platform
+/// SecureStorage - Sistema de Armazenamento Seguro Cross-Platform
 ///
 /// Implementação customizada que demonstra como integrar:
 ///
-/// **🤖 Android:**
+/// ** Android:**
 /// - KeyStore hardware-backed
 /// - Criptografia RSA local (PKCS#1)
 /// - BiometricPrompt para autenticação
 ///
-/// **🍎 iOS:**
+/// ** iOS:**
 /// - Keychain + Secure Enclave
 /// - Chaves protegidas por biometria (Face ID/Touch ID)
 /// - Descriptografia hardware-backed
 ///
-/// **💾 Armazenamento:**
+/// ** Armazenamento:**
 /// - SharedPreferences para dados criptografados
 /// - Chaves privadas nunca saem do hardware seguro
 /// - Cada plataforma usa seu mecanismo nativo
@@ -47,16 +47,13 @@ class SecureStorage {
     final String valueEncrypted = _sharedPreferences.getString(key)!;
 
     try {
-      // ✨ VERIFICAÇÃO DE PLATAFORMA PARA DESCRIPTOGRAFIA
       final publicKey = await _keyManager.getPublicKey();
 
       if (publicKey != null && publicKey.startsWith('IOS_RAW:')) {
-        // ✨ iOS: Descriptografia é feita via hardware (Keychain + biometria)
         print('📱 iOS detected: using hardware decryption');
         final planText = await _keyManager.decrypt(valueEncrypted);
         return planText;
       } else {
-        // ✨ Android: Descriptografia é feita via hardware (KeyStore + biometria)
         print('🤖 Android detected: using hardware decryption');
         final planText = await _keyManager.decrypt(valueEncrypted);
         return planText;
@@ -76,7 +73,6 @@ class SecureStorage {
     return _sharedPreferences.getString(key)!;
   }
 
-  /// 🔍 Método utilitário para verificar a plataforma baseada na chave
   Future<String> getPlatformInfo() async {
     try {
       final publicKey = await _keyManager.getPublicKey();
@@ -108,12 +104,10 @@ class SecureStorage {
       throw SecureStorageFailure('Erro: chave publica nao gerada!');
     }
 
-    // ✨ CRIPTOGRAFIA LOCAL PARA AMBAS AS PLATAFORMAS
     String dataEncrypted;
 
     try {
       if (publicKey.startsWith('IOS_RAW:')) {
-        // ✨ iOS: Converter raw key para PEM e criptografar localmente
         print(
           '📱 iOS detected: converting raw key to PEM for local encryption',
         );
@@ -126,7 +120,6 @@ class SecureStorage {
           secret: data,
         );
       } else {
-        // ✨ Android: Criptografia local usando chave PEM
         print('🤖 Android detected: using PEM key for local encryption');
         dataEncrypted = _keyManager.encryptSecretToPKCS1Base64(
           publicKeyData: publicKey,
