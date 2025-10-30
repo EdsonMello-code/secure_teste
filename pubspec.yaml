@@ -12,18 +12,11 @@ dependencies:
   shared_preferences: ^2.5.3
   http: ^1.5.0
   encrypt: ^5.0.3
-  pointycastle: ^3.9.1
-  # Packages para segurança adicional
-  flutter_dotenv: ^5.1.0
-  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  # Ferramentas de build e ofuscação
-  build_runner: ^2.4.13
-  json_annotation: ^4.9.0
 
 flutter:
   uses-material-design: true
