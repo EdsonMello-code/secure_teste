@@ -5,11 +5,12 @@ const crypto = require('crypto');
 const app = express();
 app.use(bodyParser.json({ limit: '1mb' }));
 
-// Segredo que você quer proteger por dispositivo
+// Secret to protect per device
 const SECRET_TO_PROTECT = "Super sensivel key";
+const PORT = 3000;
 
 /**
- * Converte Base64 do Android (DER) para PEM
+ * Convert Base64 from Android (DER format) to PEM
  */
 function androidBase64ToPem(androidBase64) {
   const derBytes = Buffer.from(androidBase64, 'base64');
@@ -18,7 +19,7 @@ function androidBase64ToPem(androidBase64) {
 }
 
 /**
- * Converte chave raw do iOS para PEM (X.509 DER format)
+ * Convert raw key from iOS to PEM (X.509 DER format)
  */
 function iosRawToPem(rawKeyBase64) {
   const rawKeyBytes = Buffer.from(rawKeyBase64, 'base64');
@@ -67,7 +68,7 @@ function iosRawToPem(rawKeyBase64) {
 }
 
 /**
- * Testa diferentes configurações de criptografia
+ * Test different encryption configurations (for debugging)
  */
 function testEncryptionConfigs(pubPem, data) {
   console.log('\n=== TESTING ENCRYPTION CONFIGS ===');
@@ -105,7 +106,9 @@ function testEncryptionConfigs(pubPem, data) {
 }
 
 /**
- * Endpoint de registro do dispositivo
+ * Device registration endpoint
+ * 
+ * Receives the device's public key, encrypts the secret, and returns it
  */
 app.post('/register', (req, res) => {
   try {
@@ -139,10 +142,10 @@ app.post('/register', (req, res) => {
     console.log('PEM format (first 100 chars):', pubPem.substring(0, 100));
     console.log('Platform detected:', platformType);
 
-    // (Opcional) Log de todas as configurações para diagnóstico
+    // (Optional) Log all configurations for diagnostics
     const encryptionResults = testEncryptionConfigs(pubPem, SECRET_TO_PROTECT);
 
-    // Força PKCS1 como configuração final usada para o app
+    // Use PKCS1 as the final configuration for the app
     const encrypted = crypto.publicEncrypt(
       { key: pubPem, padding: crypto.constants.RSA_PKCS1_PADDING },
       Buffer.from(SECRET_TO_PROTECT, 'utf8')
@@ -169,7 +172,7 @@ app.post('/register', (req, res) => {
 });
 
 /**
- * Endpoint para testar múltiplas configurações
+ * Test multiple encryption configurations endpoint
  */
 app.post('/test-configs', (req, res) => {
   try {
@@ -190,15 +193,15 @@ app.post('/test-configs', (req, res) => {
 });
 
 /**
- * Endpoint simples para retornar segredo
+ * Simple endpoint to return the secret (for testing only)
  */
 app.post('/get-secret', (req, res) => {
   return res.json({ secret: SECRET_TO_PROTECT });
 });
 
-// Inicia servidor
-app.listen(3000, () => {
-  console.log('🚀 Debug Server listening on :3000');
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 Debug Server listening on :${PORT}`);
   console.log('Available endpoints:');
   console.log('  POST /register - Normal registration');
   console.log('  POST /test-configs - Test all encryption configs');

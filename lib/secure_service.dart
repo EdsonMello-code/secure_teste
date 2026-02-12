@@ -7,13 +7,21 @@ import 'package:http/http.dart' as http;
 class SecureService {
   static const _channel = MethodChannel('com.example.secure_teste/keys');
   static const _storage = FlutterSecureStorage();
+  static const _encryptedSecretKey = 'encrypted_secret';
 
+  /// 📱 Register device with server
+  ///
+  /// Process:
+  /// 1. Generate/retrieve hardware-backed RSA key pair
+  /// 2. Send public key to server
+  /// 3. Receive encrypted secret from server
+  /// 4. Store encrypted secret locally
   Future<void> registerDevice(String serverUrl) async {
     try {
       final publicKeyBase64 = await _channel.invokeMethod<String>(
         'getPublicKey',
       );
-      if (publicKeyBase64 == null) {
+      if (publicKeyBase64 == null || publicKeyBase64.isEmpty) {
         throw Exception('Failed to obtain device public key');
       }
 
@@ -34,7 +42,7 @@ class SecureService {
       final encryptedSecret = responseData['encryptedBase64'] as String;
 
       // Store encrypted secret locally
-      await _storage.write(key: 'encrypted_secret', value: encryptedSecret);
+      await _storage.write(key: _encryptedSecretKey, value: encryptedSecret);
 
       print('✅ Device registered successfully');
       print('📦 Encrypted secret stored locally');
@@ -53,8 +61,8 @@ class SecureService {
   Future<String> getSecret() async {
     try {
       // Load encrypted secret from storage
-      final encryptedSecret = await _storage.read(key: 'encrypted_secret');
-      if (encryptedSecret == null) {
+      final encryptedSecret = await _storage.read(key: _encryptedSecretKey);
+      if (encryptedSecret == null || encryptedSecret.isEmpty) {
         throw Exception('No encrypted secret found. Register device first.');
       }
 
@@ -66,7 +74,7 @@ class SecureService {
         'encryptedSecret': encryptedSecret,
       });
 
-      if (secret == null) {
+      if (secret == null || secret.isEmpty) {
         throw Exception('Decryption failed');
       }
 
@@ -80,12 +88,12 @@ class SecureService {
 
   /// 🗑️ Reset device registration
   ///
-  /// Deletes the RSA key from Android KeyStore and removes the stored
-  /// encrypted blob to guarantee the next registration uses a fresh key/blob pair.
+  /// Deletes the RSA key from KeyStore/Keychain and removes the stored
+  /// encrypted secret to guarantee the next registration uses a fresh key pair.
   Future<void> resetDevice() async {
     try {
       await _channel.invokeMethod<void>('deleteKey');
-      await _storage.delete(key: 'encrypted_secret');
+      await _storage.delete(key: _encryptedSecretKey);
       print('🗑️ Device reset completed');
     } catch (e) {
       print('❌ Reset failed: $e');
