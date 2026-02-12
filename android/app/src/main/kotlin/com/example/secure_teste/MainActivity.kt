@@ -6,10 +6,10 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * 🌉 Clean MainActivity - Secure Device Registration Bridge
+ * 🌉 MainActivity - Secure Device Registration Bridge
  *
- * Minimal bridge between Flutter and Android's security features. Supports only essential
- * operations for production use.
+ * Minimal bridge between Flutter and Android's security features.
+ * Provides essential operations for secure key management and encryption.
  */
 class MainActivity : FlutterFragmentActivity() {
 
@@ -30,9 +30,10 @@ class MainActivity : FlutterFragmentActivity() {
                                 SecureKeyHelper.ensureKeyPairAndGetPublicKeyBase64(this)
 
                         if (publicKeyBase64.isEmpty()) {
-                            result.error("Error kkk", "Failed to get public key:", null)
+                            result.error("KEY_ERROR", "Failed to get public key", null)
+                        } else {
+                            result.success(publicKeyBase64)
                         }
-                        result.success(publicKeyBase64)
                     } catch (e: Exception) {
                         result.error("KEY_ERROR", "Failed to get public key: ${e.message}", null)
                     }
@@ -42,16 +43,17 @@ class MainActivity : FlutterFragmentActivity() {
                 "decryptSecret" -> {
                     val encryptedSecret = call.argument<String>("encryptedSecret")
 
-                    android.util.Log.d("Teste", encryptedSecret ?: "")
-
                     if (encryptedSecret == null) {
                         result.error("MISSING_PARAM", "encryptedSecret parameter required", null)
                         return@setMethodCallHandler
                     }
 
-                    val planText = SecureKeyHelper.descriptBase64(encryptedSecret)
-
-                    result.success(planText)
+                    try {
+                        val plainText = SecureKeyHelper.descriptBase64(encryptedSecret)
+                        result.success(plainText)
+                    } catch (e: Exception) {
+                        result.error("DECRYPT_ERROR", "Failed to decrypt: ${e.message}", null)
+                    }
                 }
 
                 // 🗑️ Delete device key from Android KeyStore
