@@ -31,9 +31,9 @@ class MainActivity : FlutterFragmentActivity() {
 
                         if (publicKeyBase64.isEmpty()) {
                             result.error("KEY_ERROR", "Failed to get public key", null)
-                            return@setMethodCallHandler
+                        } else {
+                            result.success(publicKeyBase64)
                         }
-                        result.success(publicKeyBase64)
                     } catch (e: Exception) {
                         result.error("KEY_ERROR", "Failed to get public key: ${e.message}", null)
                     }

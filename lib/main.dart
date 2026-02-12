@@ -164,7 +164,6 @@ class _SecurePageState extends State<SecurePage> {
     setState(() {
       _loading = true;
       _status = 'Registering device...';
-      _secret = '';
     });
 
     try {
